@@ -25,6 +25,7 @@ rootDirs = [
     # r'Z:\olympus slide scanner\Conversion Test'
         # ,r'Z:\olympus slide scanner\Conversion Test\fluorecent'
         r'Z:\olympus slide scanner\alan_test'
+        # r'C:\code\testData\vs200'
     ]
 
 
@@ -50,11 +51,8 @@ def addCBIPath():
 addCBIPath()
 from cbiPythonTools import file as fi
 
-
 rootDirs = [fi.formatPath(x) for x in rootDirs]
 
-filesToProcessIN = []
-filesToProcessOUT = []
 
 def bigTiffRequired(image):
     """
@@ -83,42 +81,38 @@ def bigTiffRequired(image):
     else:
         return True
 
+def pathParts(vsiFilePath):
+    path,file = os.path.split(vsiFilePath)
+    fileName,ext = os.path.splitext(file)
+    return path,fileName,ext
 
-def vsiNameGenerator(imageSet, vsiFilePath, output='image'):
-    '''
-    output = 'image', 'overview', 'complete'
-    '''
-    
-    if output == 'image':
-        baseFormat = 'Image{}.vsi'
-    
-    if output == 'overview':
-        baseFormat = 'Image{}_Overview.vsi'
-    
-    if output == 'complete':
-        baseFormat = 'conv_complete_Image{}.txt'
-    
-    fName = baseFormat.format(
-        '' if imageSet==0 
-        else '_{}'.format(
-            str(imageSet).zfill(2)
-            )
-        )
-    
-    return os.path.join(os.path.split(vsiFilePath)[0],fName)
-        
+def vsiCompleteFile(vsiFilePath):
+    path,fileName,_ = pathParts(vsiFilePath)
+    return os.path.join(path,'conv_complete_{}.txt'.format(fileName))
 
 def imageDirNameGenerator(vsiFilePath):
     '''
     Input: vsi file
     Output: directory associated with the vsi file
     '''
+    path,fileName,_ = pathParts(vsiFilePath)
+    dir_name = '_{}_'.format(fileName)
+    return os.path.join(path,dir_name)
+  
+
+def outputDirGenerator(vsiFilePath,outputFolder):
+    '''
+    Take .vsi file and outputFolder.
     
-    noExt = os.path.splitext(vsiFilePath)[0]
-    pathBase,fileBase = os.path.split(noExt)
+    Output: path to directory
+    '''
     
-    fName = '_{}_'.format(fileBase)
-    return os.path.join(pathBase,fName)
+    path,file,_ = pathParts(vsiFilePath)
+    
+    outDir = os.path.join(path,outputFolder,file)
+    
+    return outDir
+
 
 def collectImageInfo(inFilePath):
     
@@ -202,127 +196,91 @@ def convert(inFile,outFile):
     return
 
 
+
 for root in rootDirs:
     
-    # Find vsi files
-    vsiFiles = sorted(glob.glob(os.path.join(root,'**','*.vsi')))
-    
-    dataDirs = [os.path.split(x)[0] for x in vsiFiles]
-    dataDirs = sorted(list(set(dataDirs)))
-    
-    for acquireDir in dataDirs:
-        vsiFilesAcquireDir = sorted(glob.glob(os.path.join(acquireDir,'*.vsi')))
-    
-        # Assume the completed imaging sessions will be in pairs
-        numDatasets = len(vsiFilesAcquireDir)//2
+    try:
+        # Find vsi files
+        vsiFiles = sorted(glob.glob(os.path.join(root,'**','*.vsi')))
         
-        # Generate names of vsi Image and Overview files
-        # Generate name of conv_complete file
-        for imageSet in range(numDatasets):
+        dataDirs = [os.path.split(x)[0] for x in vsiFiles]
+        dataDirs = sorted(list(set(dataDirs)))
+        
+        for acquireDir in dataDirs:
+            vsiFilesAcquireDir = sorted(glob.glob(os.path.join(acquireDir,'*.vsi')))
             
-            imageName = vsiNameGenerator(imageSet, vsiFilesAcquireDir[0], output='image')
-            print(imageSet)
-            print(imageName)
-            
-            imageOverviewName = vsiNameGenerator(imageSet, vsiFilesAcquireDir[0], output='overview')
-            print(imageOverviewName)
-            
-            imageComplete = vsiNameGenerator(imageSet, vsiFilesAcquireDir[0], output='complete')
-            print(imageComplete)
-            
-            # Abort build if there is not an image complete file present
-            if os.path.exists(imageComplete):
-                continue
-            
-            # Abort build if there is not both an overview and image .vsi file
-            # The presence of these files indicates that acquisition is complete
-            if not os.path.exists(imageOverviewName) or \
-                    not os.path.exists(imageName):
+            # Generate names of vsi Image and Overview files
+            # Generate name of conv_complete file
+            for vsiFilePath in vsiFilesAcquireDir:
+                
+                try:
+                    imageDir = imageDirNameGenerator(vsiFilePath)
+                    print(vsiFilePath)
+                    print(imageDir)
+                    
+                    path,fileName,ext = pathParts(vsiFilePath)
+                    
+                    imageComplete = vsiCompleteFile(vsiFilePath)
+                    print(imageComplete)
+                    
+                    # Abort build if there is an image complete file present
+                    if os.path.exists(imageComplete):
                         continue
-            
-            
-            ## Create output DIR if it does not exist
-            path, fileName = os.path.split(imageName)
-            dirName = os.path.splitext(fileName)[0]
-            outDir = os.path.join(path,outputFolder,dirName)
-            os.makedirs(outDir,exist_ok=True)
-            
-            ## Do Overview data first
-            imageDirs = sorted(glob.glob(os.path.join(imageDirNameGenerator(imageOverviewName),'*')))
-            for ii in imageDirs:
-                if os.path.split(ii)[1] == 'stack1':
-                    inFile = glob.glob(os.path.join(ii,'*.tif'))[0]
-                    outFile = os.path.join(outDir,'{}_label.ome.tif'.format(dirName))
-                    convert(inFile,outFile)
-                
-                elif os.path.split(ii)[1] == 'stack10000':
-                    inFile = glob.glob(os.path.join(ii,'*.tif'))[0]
-                    outFile = os.path.join(outDir,'{}_overview.ome.tif'.format(dirName))
-                    convert(inFile,outFile)
                     
-            ## Do Image data next
-            ## Currently assumes that there is ONLY 1 file int he Image directory
-            ## This file is is the only file exported
-            imageDirs = sorted(glob.glob(os.path.join(imageDirNameGenerator(imageName),'*')))
-            for ii in imageDirs:
-                
-                inFile = sorted(glob.glob(os.path.join(ii,'*.tif')))[0]
-                outFile = os.path.join(outDir,'{}.ome.tif'.format(dirName))
-                convert(inFile,outFile)
-                
-                # elif os.path.split(ii)[1] == 'stack10000':
-                #     inFile = glob.glob(os.path.join(ii,'*.tif'))[0]
-                #     outFile = os.path.join(outDir,'{}_overview.ome.tif'.format(dirName))
-                #     convert(inFile,outFile)    
                     
-                # if 'stack1' in ii and not 'stack10' in ii
-            ## Indicate that imageSet is complete by writing out file
-            txt = '''
-            This file is here to indicate that the cooresponding image directory
-            has been converted.  Do not delete this file or the conversion will
-            run again!
-            '''
-            with open(imageComplete,'w') as f:
-                f.write(txt)
-        
+                    ## Create and retireve name of output DIR
+                    outDir = outputDirGenerator(vsiFilePath,outputFolder)
+                    if 'overview' in fileName.lower():
+                        newName = fileName.replace('_Overview','')
+                        p,f = os.path.split(outDir)
+                        outDir = os.path.join(p,newName)
+                    os.makedirs(outDir,exist_ok=True)
+                    
+                    ## List folders in image directory
+                    imageDirs = sorted(glob.glob(os.path.join(imageDir,'*')))
+                    
+                    ## Is it Overview data
+                    if 'overview' in fileName.lower():
+                        for ii in imageDirs:
+                            if os.path.split(ii)[1] == 'stack1':
+                                inFile = glob.glob(os.path.join(ii,'*.tif'))[0]
+                                outFile = os.path.join(outDir,'{}_label.ome.tif'.format(newName))
+                                convert(inFile,outFile)
+                            
+                            elif os.path.split(ii)[1] == 'stack10000':
+                                inFile = glob.glob(os.path.join(ii,'*.tif'))[0]
+                                outFile = os.path.join(outDir,'{}_overview.ome.tif'.format(newName))
+                                convert(inFile,outFile)
+                    
+                    else:
+                        ## Do Image data next
+                        ## Currently assumes that there is ONLY 1 file int he Image directory
+                        ## This file is is the only file exported
+                        for ii in imageDirs:
+                            
+                            inFile = sorted(glob.glob(os.path.join(ii,'*.tif')))[0]
+                            _,f,_ = pathParts(ii)
+                            filePostfix = str(int(f.split('stack')[-1]))
+                            outFile = os.path.join(outDir,'{}_{}.ome.tif'.format(fileName,filePostfix))
+                            convert(inFile,outFile)
+                            
+                    ## Indicate that imageSet is complete by writing out file
+                    txt = '''
+                    This file indicates that the cooresponding image directory
+                    has been converted.  Do not delete this file or the conversion will
+                    run again!
+                    '''
+                    with open(imageComplete,'w') as f:
+                        f.write(txt)
+                
+                except Exception:
+                    continue
+
+    except Exception:
+        continue
         
         
 
 
-
-# def convertMultiRes(inFile,outFile):
-    
-#     print('Reading image: ' + inFile)
-#     image = tifffile.imread(inFile)
-#     # fi.mkdir(os.path.split(outFile)[0])
-    
-#     print('Writing image: ' + outFile)
-    
-#     minShape = 64
-#     downSample = 0
-    
-    
-#     with TiffWriter(outFile, bigtiff=bigTiffRequired(image)) as tif:
-#         if len(image.shape) == 2:
-#             fi.mkdir(os.path.split(outFile)[0])
-            
-#             currentShape = list(image.shape)
-#             while all([x > minShape for x in currentShape]):
-#                 currentShape = [x//2 for x in currentShape]
-#                 downSample += 1
-            
-            
-#             options = dict(tile=(256, 256), photometric='minisblack',metadata={'axes': 'YX'})
-#             if downSample == 0:
-#                 tif.write(image,**options)
-#             else:
-#                 tif.write(image,subifds=downSample,**options)
-#                 for ii in range(downSample):
-#                     print('Resizing Image')
-#                     image = rescale(image,0.5)
-#                     image = img_as_uint(image)
-#                     tif.write(image,subfiletype=1,**options)
-                    
-        
 
 
