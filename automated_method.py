@@ -6,14 +6,15 @@ Created on Wed Apr 14 10:32:03 2021
 """
 
 import glob, tifffile, os, imagecodecs
-from skimage import io, img_as_ubyte, img_as_uint
-from skimage.transform import rescale
+# from skimage import io, img_as_ubyte, img_as_uint
+# from skimage.transform import rescale
 import numpy as np
-from dask import delayed
-import dask
-from tifffile import TiffWriter, TiffFile
+# from dask import delayed
+# import dask
+from tifffile import TiffFile, imread
 from matplotlib import pyplot as plt
-import xml.dom.minidom
+# import xml.dom.minidom
+import zarr
 
 
 # Name of output directory which will be at the same level as .vsi files
@@ -135,21 +136,24 @@ def collectImageInfo(inFilePath):
 
 def writeImage(imageArray,outFile,metaDict):
     
+    compression='zlib'
+    tile=(1024, 1024)
+    
     try:
         print('Writing image: ' + outFile)
         
         # RGB (ie brightfield image)
         if metaDict['axes'] == 'YXS' and metaDict['shape'][-1] == 3:
-            tifffile.imwrite(outFile,imageArray,bigtiff=bigTiffRequired(imageArray),photometric='rgb')
+            tifffile.imwrite(outFile,imageArray,bigtiff=bigTiffRequired(imageArray),photometric='rgb',compression=compression,tile=tile)
         
         elif metaDict['axes'] == 'YX' and metaDict['ndim'] == 2:
-            tifffile.imwrite(outFile,imageArray,bigtiff=bigTiffRequired(imageArray),metadata={'axes': 'YX'})
+            tifffile.imwrite(outFile,imageArray,bigtiff=bigTiffRequired(imageArray),metadata={'axes': 'YX'},compression=compression,tile=tile)
             
         elif metaDict['axes'] == 'CYX' and metaDict['ndim'] == 3:
-            tifffile.imwrite(outFile,imageArray,bigtiff=bigTiffRequired(imageArray),metadata={'axes': 'CYX'})
+            tifffile.imwrite(outFile,imageArray,bigtiff=bigTiffRequired(imageArray),metadata={'axes': 'CYX'},compression=compression,tile=tile)
         
         elif metaDict['axes'] == 'CZYX' and metaDict['ndim'] == 4:
-            tifffile.imwrite(outFile,imageArray,bigtiff=bigTiffRequired(imageArray),metadata={'axes': 'CZYX'})
+            tifffile.imwrite(outFile,imageArray,bigtiff=bigTiffRequired(imageArray),metadata={'axes': 'CZYX'},compression=compression,tile=tile)
         
     except Exception:
         print('An Image write failed')
@@ -164,11 +168,17 @@ def convert(inFile,outFile):
     metaDict = collectImageInfo(inFile)
     
     print('Reading image: ' + inFile)
-    with TiffFile(inFile) as tif:
-        image = tif.series[0].asarray()
+    # with TiffFile(inFile) as tif:
+    #     image = tif.series[0].asarray()
+    
+    # Faster read using zarr
+    with imread(inFile, aszarr=True) as store:
+        tif = zarr.open(store, mode='r')
+        image = np.asarray(tif)
+        
     
     writeImage(image,outFile,metaDict)
-    
+
     path,file = os.path.split(outFile)
     os.makedirs(os.path.join(path,'meta'),exist_ok=True)
     outMeta = os.path.join(path,'meta',file + '.xml')

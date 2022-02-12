@@ -2,4 +2,30 @@ conda create -y -n vs200 python=3.8 spyder=5
 
 conda activate vs200
 
-pip install tifffile imagecodecs scikit-image numpy dask matplotlib
+pip install tifffile imagecodecs scikit-image numpy dask matplotlib zarr
+
+
+## Install on HiveComp2
+~/anaconda3/envs/vs200/bin/pip install tifffile imagecodecs scikit-image numpy dask matplotlib zarr
+
+## Running on HiveComp2
+~/anaconda3/envs/vs200/bin/python -i /CBI_FastStore/cbiPythonTools/olympus_vs200/automated_method.py
+
+
+## Running as a cron job every 5 min (on HiveComp2)
+crontab -e
+
+# Run every 5 minutes (insert line)
+*/5 * * * * ~/anaconda3/envs/vs200/bin/python /CBI_FastStore/cbiPythonTools/olympus_vs200/automated_method.py
+
+
+
+Current Versions (2022-02-11):
+
+zarr==2.11.0
+matplotlib==3.5.1
+dask==2022.2.0
+numpy==1.22.2
+scikit-image==0.19.1
+imagecodecs==2021.11.20
+tifffile==2022.2.9
