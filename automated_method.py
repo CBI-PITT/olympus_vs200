@@ -5,16 +5,15 @@ Created on Wed Apr 14 10:32:03 2021
 @author: awatson
 """
 
-import glob, tifffile, os, imagecodecs
+import glob, os
 # from skimage import io, img_as_ubyte, img_as_uint
 # from skimage.transform import rescale
-import numpy as np
 # from dask import delayed
 # import dask
-from tifffile import TiffFile, imread
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 # import xml.dom.minidom
-import zarr
+from utils import collectImageInfo
+from tile_by_tile import copy_tile_by_tile_any_senario
 
 
 # Name of output directory which will be at the same level as .vsi files
@@ -24,8 +23,9 @@ outputFolder = 'conversion_out'
 rootDirs = [
     # r'Z:\olympus slide scanner\Conversion Test'
         # ,r'Z:\olympus slide scanner\Conversion Test\fluorecent'
-        r'Z:\olympus slide scanner\alan_test'
+        # r'Z:\olympus slide scanner\alan_test\basicTest'
         # r'C:\code\testData\vs200'
+        r'Z:\olympus slide scanner\alan_test\forLater'
     ]
 
 
@@ -54,32 +54,6 @@ from cbiPythonTools import file as fi
 rootDirs = [fi.formatPath(x) for x in rootDirs]
 
 
-def bigTiffRequired(image):
-    """
-    TiffClass with .image array
-    Returns True if the size and data type of the array and bit type form >= 2GB and 
-    requires a BifTiff format
-    
-    Else returns False
-    """
-    bifTiffCutoff = (2**32 - 2**25)/1024/1024/1024/2  ##Converted to GB (/1024/1024/1024) '/2' required to bring below 2GB or tiff fails to write
-    # fileSize = tiffClass.image.shape[0]*tiffClass.image.shape[1]
-    
-    for num, ii in enumerate(image.shape):
-        if num==0:
-            fileSize = ii
-        else:
-            fileSize *= ii
-        
-    if str(image.dtype) == 'uint16':
-        fileSize = fileSize*16-1
-    if str(image.dtype) == 'uint8' or str(image.dtype) == 'ubyte':
-        fileSize = fileSize*8-1
-    fileSize = fileSize/8/1024/1024/1024
-    if fileSize < bifTiffCutoff:
-        return False
-    else:
-        return True
 
 def pathParts(vsiFilePath):
     path,file = os.path.split(vsiFilePath)
@@ -113,49 +87,6 @@ def outputDirGenerator(vsiFilePath,outputFolder):
     
     return outDir
 
-
-def collectImageInfo(inFilePath):
-    
-    with TiffFile(inFilePath) as tif:
-        
-        tiffData = {}
-        tiffData['ome_metadata'] = tif.ome_metadata # This is XML format and can be directly written to disk
-        tiffData['resolutions'] = len(tif.series)
-        tiffData['shape'] = tif.series[0].shape
-        tiffData['dtype'] = tif.series[0].dtype
-        tiffData['axes'] = tif.series[0].axes
-        tiffData['ndim'] = tif.series[0].ndim
-        
-    return tiffData
-
-def writeImage(imageArray,outFile,metaDict):
-    
-    compression='zlib'
-    tile=(1024, 1024)
-    
-    try:
-        print('Writing image: ' + outFile)
-        
-        # RGB (ie brightfield image)
-        if metaDict['axes'] == 'YXS' and metaDict['shape'][-1] == 3:
-            tifffile.imwrite(outFile,imageArray,bigtiff=bigTiffRequired(imageArray),photometric='rgb',compression=compression,tile=tile)
-        
-        elif metaDict['axes'] == 'YX' and metaDict['ndim'] == 2:
-            tifffile.imwrite(outFile,imageArray,bigtiff=bigTiffRequired(imageArray),metadata={'axes': 'YX'},compression=compression,tile=tile)
-            
-        elif metaDict['axes'] == 'CYX' and metaDict['ndim'] == 3:
-            tifffile.imwrite(outFile,imageArray,bigtiff=bigTiffRequired(imageArray),metadata={'axes': 'CYX'},compression=compression,tile=tile)
-        
-        elif metaDict['axes'] == 'CZYX' and metaDict['ndim'] == 4:
-            tifffile.imwrite(outFile,imageArray,bigtiff=bigTiffRequired(imageArray),metadata={'axes': 'CZYX'},compression=compression,tile=tile)
-        
-    except Exception:
-        print('An Image write failed')
-        raise
-    
-    return
-
-
 def convert(inFile,outFile):
     
     print('Collectng image information')
@@ -165,33 +96,30 @@ def convert(inFile,outFile):
     # with TiffFile(inFile) as tif:
     #     image = tif.series[0].asarray()
     
-    # Faster read using zarr
-    with imread(inFile, aszarr=True) as store:
-        tif = zarr.open(store, mode='r')
-        image = np.asarray(tif)
-        
+    compression='zlib'
+    compression=None
+    copy_tile_by_tile_any_senario(inFile, outFile, axes=metaDict['axes'], fallback_tileshape=(512,512), compression=compression)
     
-    writeImage(image,outFile,metaDict)
-
     path,file = os.path.split(outFile)
     os.makedirs(os.path.join(path,'meta'),exist_ok=True)
     outMeta = os.path.join(path,'meta',file + '.xml')
     with open(outMeta,'w') as meta:
         meta.write(metaDict['ome_metadata'])
     
-    if metaDict['axes'] == 'CZYX' and metaDict['ndim'] == 4:
-        ## Axis 1 is color, so maxIP is over axis 1
-        # imageMax = np.max(image,axis=1,keepdims=True)
-        image = np.max(image,axis=1)
-        metaDict['axes'] == 'CYX'
-        metaDict['ndim'] == 3
-        if fileName[-8:] == '.ome.tif':
-            outFile = fileName[:-8] + '_maxip.ome.tif'
-        else:
-            prefix, _ = os.path.splitext(outFile)
-            outFile = prefix + '_maxip.ome.tif'
+    ## TODO: Make maxip work tile by tile
+    # if metaDict['axes'] == 'CZYX' and metaDict['ndim'] == 4:
+    #     ## Axis 1 is color, so maxIP is over axis 1
+    #     # imageMax = np.max(image,axis=1,keepdims=True)
+    #     image = np.max(image,axis=1)
+    #     metaDict['axes'] == 'CYX'
+    #     metaDict['ndim'] == 3
+    #     if fileName[-8:] == '.ome.tif':
+    #         outFile = fileName[:-8] + '_maxip.ome.tif'
+    #     else:
+    #         prefix, _ = os.path.splitext(outFile)
+    #         outFile = prefix + '_maxip.ome.tif'
             
-        writeImage(image,outFile,metaDict)
+    #     writeImage(image,outFile,metaDict)
     
     return
 
@@ -201,7 +129,7 @@ for root in rootDirs:
     
     try:
         # Find vsi files
-        vsiFiles = sorted(glob.glob(os.path.join(root,'**','*.vsi')))
+        vsiFiles = sorted(glob.glob(os.path.join(root,'**','*.vsi'),recursive=True))
         
         dataDirs = [os.path.split(x)[0] for x in vsiFiles]
         dataDirs = sorted(list(set(dataDirs)))
