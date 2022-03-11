@@ -13,11 +13,16 @@ import glob, os
 # from matplotlib import pyplot as plt
 # import xml.dom.minidom
 from utils import collectImageInfo
-from tile_by_tile import copy_tile_by_tile_any_senario
+from tile_by_tile import copy_tile_by_tile_any_senario, copy_tile_by_tile_multires, copy_tile_by_tile_multires_mip
 
 
 # Name of output directory which will be at the same level as .vsi files
 outputFolder = 'conversion_out'
+
+#redo == True will ignore the 'complete file' and rerun ALL conversions.
+#Generally this should ALWAYS be False - specific conversions can be rerun 
+#by simplyy deleting the specific conv_comkplete*.txt' file
+redo = False
 
 # A list of location to be checked for acquired
 rootDirs = [
@@ -25,7 +30,9 @@ rootDirs = [
         # ,r'Z:\olympus slide scanner\Conversion Test\fluorecent'
         # r'Z:\olympus slide scanner\alan_test\basicTest'
         # r'C:\code\testData\vs200'
-        r'Z:\olympus slide scanner\alan_test\forLater'
+        # r'Z:\olympus slide scanner\alan_test\forLater'
+        # r'h:\CBI\Mike\Slide Scanner'
+        # r'H:\CBI\Mike\Slide Scanner\Freyberg\1ss6 brain slices fluo'
     ]
 
 
@@ -96,9 +103,14 @@ def convert(inFile,outFile):
     # with TiffFile(inFile) as tif:
     #     image = tif.series[0].asarray()
     
-    compression='zlib'
+    ## https://gregoryszorc.com/blog/2017/03/07/better-compression-with-zstandard/
+    # compression=('zlib',6)
+    # compression=('zstd',1)
+    # compression=('lzma',2)
     compression=None
-    copy_tile_by_tile_any_senario(inFile, outFile, axes=metaDict['axes'], fallback_tileshape=(512,512), compression=compression)
+    # copy_tile_by_tile_any_senario(inFile, outFile, axes=metaDict['axes'], fallback_tileshape=(512,512), compression=compression) #Only base resolution
+    # copy_tile_by_tile_multires(inFile, outFile, axes=metaDict['axes'], fallback_tileshape=(512,512), compression=compression, maxip=False) #All subresolutions are copied
+    copy_tile_by_tile_multires_mip(inFile, outFile, axes=metaDict['axes'], fallback_tileshape=(512,512), compression=compression, maxip=False)
     
     path,file = os.path.split(outFile)
     os.makedirs(os.path.join(path,'meta'),exist_ok=True)
@@ -106,25 +118,20 @@ def convert(inFile,outFile):
     with open(outMeta,'w') as meta:
         meta.write(metaDict['ome_metadata'])
     
-    ## TODO: Make maxip work tile by tile
-    # if metaDict['axes'] == 'CZYX' and metaDict['ndim'] == 4:
-    #     ## Axis 1 is color, so maxIP is over axis 1
-    #     # imageMax = np.max(image,axis=1,keepdims=True)
-    #     image = np.max(image,axis=1)
-    #     metaDict['axes'] == 'CYX'
-    #     metaDict['ndim'] == 3
-    #     if fileName[-8:] == '.ome.tif':
-    #         outFile = fileName[:-8] + '_maxip.ome.tif'
-    #     else:
-    #         prefix, _ = os.path.splitext(outFile)
-    #         outFile = prefix + '_maxip.ome.tif'
+    if 'Z' in metaDict['axes']:
+        
+        if fileName[-8:] == '.ome.tif':
+            outFile = fileName[:-8] + '_maxip.ome.tif'
+        else:
+            prefix, _ = os.path.splitext(outFile)
+            outFile = prefix + '_maxip.ome.tif'
             
-    #     writeImage(image,outFile,metaDict)
+        copy_tile_by_tile_multires_mip(inFile, outFile, axes=metaDict['axes'], fallback_tileshape=(512,512), compression=compression, maxip=True)
     
     return
 
 
-
+exceptions = []
 for root in rootDirs:
     
     try:
@@ -152,7 +159,7 @@ for root in rootDirs:
                     print(imageComplete)
                     
                     # Abort build if there is an image complete file present
-                    if os.path.exists(imageComplete):
+                    if os.path.exists(imageComplete) and redo == False:
                         continue
                     
                     
@@ -201,10 +208,13 @@ for root in rootDirs:
                     with open(imageComplete,'w') as f:
                         f.write(txt)
                 
-                except Exception:
+                except Exception as e:
+                    exceptions.append((inFile,e))
+                    print(e)
                     continue
 
-    except Exception:
+    except Exception as e:
+        print(e)
         continue
         
         
