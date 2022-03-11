@@ -12,6 +12,8 @@ from itertools import product
 from utils import bigTiffRequired
 import numpy as np
 
+
+outFile = r'z:\testOut.tif'
 # RGB
 inFile = r'Z:\olympus slide scanner\alan_test\basicTest\lab_1\_Image_01_Overview_\stack1\frame_t.tif'
 
@@ -23,6 +25,9 @@ inFile = r'Z:\olympus slide scanner\alan_test\forLater\z stack test\_Image_02_\s
 
 # Stack overview
 inFile = r'Z:\olympus slide scanner\alan_test\forLater\z stack test\_Image_Overview_01_\stack10000\frame_t_0.tif'
+
+# FAILING:
+inFile = r'H:\CBI\Mike\Slide Scanner\Freyberg\1ss6 brain slices fluo\_Image_05c\stack1\frame_t_0.tif'
 
 
 

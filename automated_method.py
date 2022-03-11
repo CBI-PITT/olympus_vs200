@@ -31,8 +31,10 @@ rootDirs = [
         # r'Z:\olympus slide scanner\alan_test\basicTest'
         # r'C:\code\testData\vs200'
         # r'Z:\olympus slide scanner\alan_test\forLater'
-        # r'h:\CBI\Mike\Slide Scanner'
+        r'h:\CBI\Mike\Slide Scanner'
+        # r'H:\CBI\Mike\Slide Scanner\Freyberg'
         # r'H:\CBI\Mike\Slide Scanner\Freyberg\1ss6 brain slices fluo'
+        # r'H:\CBI\Mike\Slide Scanner\Freyberg\1ss6 brain slices fluo\_Image_05c\stack1'
     ]
 
 
@@ -104,10 +106,10 @@ def convert(inFile,outFile):
     #     image = tif.series[0].asarray()
     
     ## https://gregoryszorc.com/blog/2017/03/07/better-compression-with-zstandard/
-    # compression=('zlib',6)
+    compression=('zlib',6)
     # compression=('zstd',1)
     # compression=('lzma',2)
-    compression=None
+    # compression=None
     # copy_tile_by_tile_any_senario(inFile, outFile, axes=metaDict['axes'], fallback_tileshape=(512,512), compression=compression) #Only base resolution
     # copy_tile_by_tile_multires(inFile, outFile, axes=metaDict['axes'], fallback_tileshape=(512,512), compression=compression, maxip=False) #All subresolutions are copied
     copy_tile_by_tile_multires_mip(inFile, outFile, axes=metaDict['axes'], fallback_tileshape=(512,512), compression=compression, maxip=False)
@@ -118,7 +120,7 @@ def convert(inFile,outFile):
     with open(outMeta,'w') as meta:
         meta.write(metaDict['ome_metadata'])
     
-    if 'Z' in metaDict['axes']:
+    if 'Z' in metaDict['axes'].upper():
         
         if fileName[-8:] == '.ome.tif':
             outFile = fileName[:-8] + '_maxip.ome.tif'
@@ -132,6 +134,7 @@ def convert(inFile,outFile):
 
 
 exceptions = []
+toProcess = []
 for root in rootDirs:
     
     try:
