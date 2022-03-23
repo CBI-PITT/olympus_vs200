@@ -2,7 +2,7 @@ conda create -y -n vs200 python=3.8 spyder=5
 
 conda activate vs200
 
-pip install tifffile imagecodecs scikit-image numpy dask matplotlib zarr
+pip install tifffile imagecodecs scikit-image numpy dask distributed matplotlib zarr
 
 
 ## Install on HiveComp2

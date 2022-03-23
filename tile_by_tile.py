@@ -13,21 +13,21 @@ from utils import bigTiffRequired
 import numpy as np
 
 
-outFile = r'z:\testOut.tif'
-# RGB
-inFile = r'Z:\olympus slide scanner\alan_test\basicTest\lab_1\_Image_01_Overview_\stack1\frame_t.tif'
+# outFile = r'z:\testOut.tif'
+# # RGB
+# inFile = r'Z:\olympus slide scanner\alan_test\basicTest\lab_1\_Image_01_Overview_\stack1\frame_t.tif'
 
-# Multichannel
-inFile = r'Z:\olympus slide scanner\alan_test\basicTest\lab_1\_Image_06_\stack1\frame_t_0.tif'
+# # Multichannel
+# inFile = r'Z:\olympus slide scanner\alan_test\basicTest\lab_1\_Image_06_\stack1\frame_t_0.tif'
 
-# Stack
-inFile = r'Z:\olympus slide scanner\alan_test\forLater\z stack test\_Image_02_\stack1\frame_t_0.tif'
+# # Stack
+# inFile = r'Z:\olympus slide scanner\alan_test\forLater\z stack test\_Image_02_\stack1\frame_t_0.tif'
 
-# Stack overview
-inFile = r'Z:\olympus slide scanner\alan_test\forLater\z stack test\_Image_Overview_01_\stack10000\frame_t_0.tif'
+# # Stack overview
+# inFile = r'Z:\olympus slide scanner\alan_test\forLater\z stack test\_Image_Overview_01_\stack10000\frame_t_0.tif'
 
-# FAILING:
-inFile = r'H:\CBI\Mike\Slide Scanner\Freyberg\1ss6 brain slices fluo\_Image_05c\stack1\frame_t_0.tif'
+# # FAILING:
+# inFile = r'H:\CBI\Mike\Slide Scanner\Freyberg\1ss6 brain slices fluo\_Image_05c\stack1\frame_t_0.tif'
 
 
 
@@ -223,7 +223,7 @@ def copy_tile_by_tile_multires_mip(inFile: str, outFile: str, axes: str, fallbac
                             subifds=seriesNum-1,
                             metadata={'axes': axes} if maxip==False else {'axes': axes.replace('Z','')},
                             tile=tileshape[XY_index:XY_index+2] if (tileshape[XY_index]%16==0 and tileshape[XY_index+1]%16==0) else fallback_tileshape,
-                            shape=img.shape,
+                            shape=img.shape if maxip==False else tuple([x for idx,x in enumerate(img.shape) if idx != axes.index('Z')]),
                             dtype=img.dtype,
                             compression=compression
                             )
@@ -233,7 +233,7 @@ def copy_tile_by_tile_multires_mip(inFile: str, outFile: str, axes: str, fallbac
                             # subfiletype=1,
                             metadata={'axes': axes} if maxip==False else {'axes': axes.replace('Z','')},
                             tile=tileshape[XY_index:XY_index+2] if (tileshape[XY_index]%16==0 and tileshape[XY_index+1]%16==0) else fallback_tileshape,
-                            shape=img.shape,
+                            shape=img.shape if maxip==False else tuple([x for idx,x in enumerate(img.shape) if idx != axes.index('Z')]),
                             dtype=img.dtype,
                             compression=compression
                             )
