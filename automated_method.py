@@ -6,6 +6,7 @@ Created on Wed Apr 14 10:32:03 2021
 """
 
 import glob, os
+import time
 # from skimage import io, img_as_ubyte, img_as_uint
 # from skimage.transform import rescale
 from dask import delayed
@@ -141,138 +142,139 @@ def convert_delayed(inFile,outFile,imageComplete,txt):
     return True
     
 
-# ## Indicate that imageSet is complete by writing out file
-txt = '''
-This file indicates that the cooresponding image directory
-has been converted.  Do not delete this file or the conversion will
-run again!
-'''
+def automated_method():
+    # ## Indicate that imageSet is complete by writing out file
+    txt = '''
+    This file indicates that the cooresponding image directory
+    has been converted.  Do not delete this file or the conversion will
+    run again!
+    '''
 
 
-exceptions = []
-toProcess = []
-for root in rootDirs:
-    # continue
-    
-    try:
-        # Find vsi files
-        vsiFiles = sorted(glob.glob(os.path.join(root,'**','*.vsi'),recursive=True))
-        
-        dataDirs = [os.path.split(x)[0] for x in vsiFiles]
-        dataDirs = sorted(list(set(dataDirs)))
-        
-        for acquireDir in dataDirs:
-            vsiFilesAcquireDir = sorted(glob.glob(os.path.join(acquireDir,'*.vsi')))
-            
-            # Generate names of vsi Image and Overview files
-            # Generate name of conv_complete file
-            # vsiFilePath = r'H:\CBI\Mike\Slide Scanner\Freyberg\1ss6 brain slices fluo\Image_01a.vsi'
-            for vsiFilePath in vsiFilesAcquireDir:
-                
-                try:
-                    imageDir = imageDirNameGenerator(vsiFilePath)
-                    print(vsiFilePath)
-                    print(imageDir)
-                    
-                    path,fileName,ext = pathParts(vsiFilePath)
-                    
-                    imageComplete = vsiCompleteFile(vsiFilePath)
-                    print(imageComplete)
-                    
-                    # Abort build if there is an image complete file present
-                    if os.path.exists(imageComplete) and redo == False:
+    exceptions = []
+    toProcess = []
+    for root in rootDirs:
+        # continue
+
+        try:
+            # Find vsi files
+            vsiFiles = sorted(glob.glob(os.path.join(root,'**','*.vsi'),recursive=True))
+
+            dataDirs = [os.path.split(x)[0] for x in vsiFiles]
+            dataDirs = sorted(list(set(dataDirs)))
+
+            for acquireDir in dataDirs:
+                vsiFilesAcquireDir = sorted(glob.glob(os.path.join(acquireDir,'*.vsi')))
+
+                # Generate names of vsi Image and Overview files
+                # Generate name of conv_complete file
+                # vsiFilePath = r'H:\CBI\Mike\Slide Scanner\Freyberg\1ss6 brain slices fluo\Image_01a.vsi'
+                for vsiFilePath in vsiFilesAcquireDir:
+
+                    try:
+                        imageDir = imageDirNameGenerator(vsiFilePath)
+                        print(vsiFilePath)
+                        print(imageDir)
+
+                        path,fileName,ext = pathParts(vsiFilePath)
+
+                        imageComplete = vsiCompleteFile(vsiFilePath)
+                        print(imageComplete)
+
+                        # Abort build if there is an image complete file present
+                        if os.path.exists(imageComplete) and redo == False:
+                            continue
+
+
+                        ## Create and retireve name of output DIR
+                        outDir = outputDirGenerator(vsiFilePath,outputFolder)
+                        if 'overview' in fileName.lower():
+                            newName = fileName.replace('_Overview','')
+                            p,f = os.path.split(outDir)
+                            outDir = os.path.join(p,newName)
+
+
+                        ## List folders in image directory
+                        imageDirs = sorted(glob.glob(os.path.join(imageDir,'*')))
+                        # Sometimes an underscore is not at the end of an image directory
+                        # Remove the underscore and try again
+                        if imageDirs == []:
+                            imageDirs = sorted(glob.glob(os.path.join(imageDir[:-1],'*')))
+
+                        ## Is it Overview data
+                        if 'overview' in fileName.lower():
+                            for ii in imageDirs:
+                                if os.path.split(ii)[1] == 'stack1':
+                                    inFile = glob.glob(os.path.join(ii,'*.tif'))[0]
+                                    outFile = os.path.join(outDir,'{}_label.ome.tif'.format(newName))
+                                    a = delayed(convert_delayed)(inFile,outFile,imageComplete,txt)
+                                    toProcess.append(a)
+
+                                elif os.path.split(ii)[1] == 'stack10000':
+                                    inFile = glob.glob(os.path.join(ii,'*.tif'))[0]
+                                    outFile = os.path.join(outDir,'{}_overview.ome.tif'.format(newName))
+                                    a = delayed(convert_delayed)(inFile,outFile,imageComplete,txt)
+                                    toProcess.append(a)
+
+                                print('Queueing file {}: '.format(inFile))
+
+                        else:
+                            ## Do Image data next
+                            ## Currently assumes that there is ONLY 1 file int he Image directory
+                            ## This file is is the only file exported
+                            for ii in imageDirs:
+
+                                inFile = sorted(glob.glob(os.path.join(ii,'*.tif')))[0]
+                                _,f,_ = pathParts(ii)
+                                filePostfix = str(int(f.split('stack')[-1]))
+                                outFile = os.path.join(outDir,'{}_{}.ome.tif'.format(fileName,filePostfix))
+                                a = delayed(convert_delayed)(inFile,outFile,imageComplete,txt)
+                                toProcess.append(a)
+
+                                print('Queueing file {}: '.format(inFile))
+
+                        # ## Indicate that imageSet is complete by writing out file
+                        # txt = '''
+                        # This file indicates that the cooresponding image directory
+                        # has been converted.  Do not delete this file or the conversion will
+                        # run again!
+                        # '''
+                        # with open(imageComplete,'w') as f:
+                        #     f.write(txt)
+
+
+                    except Exception as e:
+                        exceptions.append((inFile,e))
+                        print(e)
                         continue
-                    
-                    
-                    ## Create and retireve name of output DIR
-                    outDir = outputDirGenerator(vsiFilePath,outputFolder)
-                    if 'overview' in fileName.lower():
-                        newName = fileName.replace('_Overview','')
-                        p,f = os.path.split(outDir)
-                        outDir = os.path.join(p,newName)
-                    
-                    
-                    ## List folders in image directory
-                    imageDirs = sorted(glob.glob(os.path.join(imageDir,'*')))
-                    # Sometimes an underscore is not at the end of an image directory
-                    # Remove the underscore and try again
-                    if imageDirs == []:
-                        imageDirs = sorted(glob.glob(os.path.join(imageDir[:-1],'*')))
-                    
-                    ## Is it Overview data
-                    if 'overview' in fileName.lower():
-                        for ii in imageDirs:
-                            if os.path.split(ii)[1] == 'stack1':
-                                inFile = glob.glob(os.path.join(ii,'*.tif'))[0]
-                                outFile = os.path.join(outDir,'{}_label.ome.tif'.format(newName))
-                                a = delayed(convert_delayed)(inFile,outFile,imageComplete,txt)
-                                toProcess.append(a)
-                            
-                            elif os.path.split(ii)[1] == 'stack10000':
-                                inFile = glob.glob(os.path.join(ii,'*.tif'))[0]
-                                outFile = os.path.join(outDir,'{}_overview.ome.tif'.format(newName))
-                                a = delayed(convert_delayed)(inFile,outFile,imageComplete,txt)
-                                toProcess.append(a)
-                            
-                            print('Queueing file {}: '.format(inFile))
-                    
-                    else:
-                        ## Do Image data next
-                        ## Currently assumes that there is ONLY 1 file int he Image directory
-                        ## This file is is the only file exported
-                        for ii in imageDirs:
-                            
-                            inFile = sorted(glob.glob(os.path.join(ii,'*.tif')))[0]
-                            _,f,_ = pathParts(ii)
-                            filePostfix = str(int(f.split('stack')[-1]))
-                            outFile = os.path.join(outDir,'{}_{}.ome.tif'.format(fileName,filePostfix))
-                            a = delayed(convert_delayed)(inFile,outFile,imageComplete,txt)
-                            toProcess.append(a)
-                            
-                            print('Queueing file {}: '.format(inFile))
-                            
-                    # ## Indicate that imageSet is complete by writing out file
-                    # txt = '''
-                    # This file indicates that the cooresponding image directory
-                    # has been converted.  Do not delete this file or the conversion will
-                    # run again!
-                    # '''
-                    # with open(imageComplete,'w') as f:
-                    #     f.write(txt)
-                    
-                
-                except Exception as e:
-                    exceptions.append((inFile,e))
-                    print(e)
-                    continue
-                
 
-    except Exception as e:
-        print(e)
-        continue
 
-parallel = False
-dist = False
-if len(toProcess) > 0:
-    print('Processing batch from: {}'.format(root))
-    if parallel == True:
-        if dist == True:
-            client = Client()
-            toProcess = client.compute(toProcess)
-            toProcess = client.gather(toProcess)
-            client.close()
-            del client
+        except Exception as e:
+            print(e)
+            continue
+
+    parallel = False
+    dist = False
+    if len(toProcess) > 0:
+        print('Processing batch from: {}'.format(root))
+        if parallel == True:
+            if dist == True:
+                client = Client()
+                toProcess = client.compute(toProcess)
+                toProcess = client.gather(toProcess)
+                client.close()
+                del client
+            else:
+                toProcess = dask.compute(toProcess)
         else:
-            toProcess = dask.compute(toProcess)
-    else:
-        for ii in toProcess:
-            a = ii.compute()
-        
-        
-toProcess = []
+            for ii in toProcess:
+                a = ii.compute()
+
+    toProcess = []
 
 
-
-
-
-
+if __name__ == "__main__":
+    sleep_minutes = 10
+    while True:
+        automated_method()
+        time.sleep(sleep_minutes * 60)
