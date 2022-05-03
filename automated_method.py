@@ -223,8 +223,11 @@ def automated_method():
                             ## Currently assumes that there is ONLY 1 file int he Image directory
                             ## This file is is the only file exported
                             for ii in imageDirs:
-
-                                inFile = sorted(glob.glob(os.path.join(ii,'*.tif')))[0]
+                                try:
+                                    inFile = sorted(glob.glob(os.path.join(ii,'*.tif')))[0]
+                                except IndexError as e:
+                                    exceptions.append((ii, e))
+                                    continue
                                 _,f,_ = pathParts(ii)
                                 filePostfix = str(int(f.split('stack')[-1]))
                                 outFile = os.path.join(outDir,'{}_{}.ome.tif'.format(fileName,filePostfix))
