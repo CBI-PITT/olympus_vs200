@@ -170,7 +170,7 @@ def automated_method():
                 # Generate name of conv_complete file
                 # vsiFilePath = r'H:\CBI\Mike\Slide Scanner\Freyberg\1ss6 brain slices fluo\Image_01a.vsi'
                 for vsiFilePath in vsiFilesAcquireDir:
-
+                    inFile = None
                     try:
                         imageDir = imageDirNameGenerator(vsiFilePath)
                         print(vsiFilePath)
@@ -205,13 +205,21 @@ def automated_method():
                         if 'overview' in fileName.lower():
                             for ii in imageDirs:
                                 if os.path.split(ii)[1] == 'stack1':
-                                    inFile = glob.glob(os.path.join(ii,'*.tif'))[0]
-                                    outFile = os.path.join(outDir,'{}_label.ome.tif'.format(newName))
+                                    try:
+                                        inFile = glob.glob(os.path.join(ii,'*.tif'))[0]
+                                    except IndexError as e:
+                                        exceptions.append((ii, e))
+                                        continue
+                                    outFile = os.path.join(outDir,'{}_label.ome.tif'.format(newName))  # TODO newName can be undefined
                                     a = delayed(convert_delayed)(inFile,outFile,imageComplete,txt)
                                     toProcess.append(a)
 
                                 elif os.path.split(ii)[1] == 'stack10000':
-                                    inFile = glob.glob(os.path.join(ii,'*.tif'))[0]
+                                    try:
+                                        inFile = glob.glob(os.path.join(ii,'*.tif'))[0]
+                                    except IndexError as e:
+                                        exceptions.append((ii, e))
+                                        continue
                                     outFile = os.path.join(outDir,'{}_overview.ome.tif'.format(newName))
                                     a = delayed(convert_delayed)(inFile,outFile,imageComplete,txt)
                                     toProcess.append(a)
@@ -259,7 +267,7 @@ def automated_method():
     parallel = False
     dist = False
     if len(toProcess) > 0:
-        print('Processing batch from: {}'.format(root))
+        print('Processing batch from: {}'.format(root))  # TODO root can be undefined
         if parallel == True:
             if dist == True:
                 client = Client()
@@ -280,4 +288,5 @@ if __name__ == "__main__":
     sleep_minutes = 10
     while True:
         automated_method()
+        print(f"Waiting {sleep_minutes} minutes...")
         time.sleep(sleep_minutes * 60)
