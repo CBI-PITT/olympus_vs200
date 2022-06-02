@@ -124,8 +124,8 @@ def convert(inFile,outFile):
     
     if 'Z' in metaDict['axes'].upper():
         
-        if fileName[-8:] == '.ome.tif':
-            outFile = fileName[:-8] + '_maxip.ome.tif'
+        if outFile[-8:] == '.ome.tif':
+            outFile = outFile[:-8] + '_maxip.ome.tif'
         else:
             prefix, _ = os.path.splitext(outFile)
             outFile = prefix + '_maxip.ome.tif'
