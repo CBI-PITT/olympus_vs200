@@ -16,6 +16,7 @@ from distributed import Client
 # import xml.dom.minidom
 from utils import collectImageInfo
 from tile_by_tile import copy_tile_by_tile_any_senario, copy_tile_by_tile_multires, copy_tile_by_tile_multires_mip
+import tifffile
 
 
 # Name of output directory which will be at the same level as .vsi files
@@ -101,8 +102,12 @@ def outputDirGenerator(vsiFilePath,outputFolder):
 def convert(inFile,outFile):
     
     print('Collectng image information')
-    metaDict = collectImageInfo(inFile)
-    
+    try:
+        metaDict = collectImageInfo(inFile)
+    except tifffile.tifffile.TiffFileError as e:  # errors on temp files
+        print("WARNING:", e, inFile)
+        return
+
     print('Reading image: ' + inFile)
     # with TiffFile(inFile) as tif:
     #     image = tif.series[0].asarray()
