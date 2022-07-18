@@ -34,7 +34,8 @@ rootDirs = [
         # r'Z:\olympus slide scanner\alan_test\basicTest'
         # r'C:\code\testData\vs200'
         # r'Z:\olympus slide scanner\alan_test\forLater'
-        r'h:\CBI\Mike\Slide Scanner'
+        r'h:\CBI\Mike\Slide Scanner',
+        r'h:\CBI\Greg\Olympus Slide Scanner'
         # r'H:\CBI\Mike\Slide Scanner\Freyberg'
         # r'H:\CBI\Mike\Slide Scanner\Freyberg\1ss6 brain slices fluo'
         # r'H:\CBI\Mike\Slide Scanner\Freyberg\1ss6 brain slices fluo\_Image_05c\stack1'
