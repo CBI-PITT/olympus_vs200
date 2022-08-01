@@ -293,6 +293,10 @@ def automated_method():
 if __name__ == "__main__":
     sleep_minutes = 10
     while True:
-        automated_method()
+        try:
+            automated_method()
+        except Exception as e:
+            print("WARNING:", e)
+
         print(f"Waiting {sleep_minutes} minutes...")
         time.sleep(sleep_minutes * 60)
