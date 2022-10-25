@@ -6,6 +6,7 @@ Created on Wed Apr 14 10:32:03 2021
 """
 
 import glob, os
+import re
 import time
 # from skimage import io, img_as_ubyte, img_as_uint
 # from skimage.transform import rescale
@@ -95,8 +96,12 @@ def outputDirGenerator(vsiFilePath,outputFolder):
     '''
     
     path,file,_ = pathParts(vsiFilePath)
-    
-    outDir = os.path.join(path,outputFolder,file)
+
+    numbers_in_file_name = re.findall(r"\d\d", file)
+    tray_number = numbers_in_file_name[0]
+    slide_number = numbers_in_file_name[1]
+
+    outDir = os.path.join(path, outputFolder, f"{file.split('_')[0]}_{tray_number}_{slide_number}")
     
     return outDir
 
