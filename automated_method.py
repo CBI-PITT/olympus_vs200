@@ -98,12 +98,13 @@ def outputDirGenerator(vsiFilePath,outputFolder):
     path,file,_ = pathParts(vsiFilePath)
 
     numbers_in_file_name = re.findall(r"\d\d", file)
-    tray_number = numbers_in_file_name[0]
-    slide_number = numbers_in_file_name[1]
+    tray_number = numbers_in_file_name[0] if len(numbers_in_file_name) > 0 else '00'
+    slide_number = numbers_in_file_name[1] if len(numbers_in_file_name) > 1 else '00'
 
     outDir = os.path.join(path, outputFolder, f"{file.split('_')[0]}_{tray_number}_{slide_number}")
     
     return outDir
+
 
 def convert(inFile,outFile):
     
