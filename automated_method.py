@@ -18,6 +18,19 @@ from distributed import Client
 from utils import collectImageInfo
 from tile_by_tile import copy_tile_by_tile_any_senario, copy_tile_by_tile_multires, copy_tile_by_tile_multires_mip
 import tifffile
+from skimage.io import imsave
+from skimage.transform import rotate
+
+def make_label_thumbnail(inFile,outFile):
+
+    print('Create thumbnail: ' + inFile)
+    
+    l = tifffile.imread(inFile,series = -1)
+    l = (rotate(l,-90)*255).astype('uint8')
+
+    imsave(outFile,l)
+
+    return True
 
 
 # Name of output directory which will be at the same level as .vsi files
@@ -224,6 +237,10 @@ def automated_method():
                                         continue
                                     outFile = os.path.join(outDir,'{}_label.ome.tif'.format(newName))  # TODO newName can be undefined
                                     a = delayed(convert_delayed)(inFile,outFile,imageComplete,txt)
+                                    toProcess.append(a)
+
+                                    labelSave = os.path.join(path,'{}_label.jpg'.format(newName))
+                                    a = delayed(make_label_thumbnail)(inFile,labelSave)
                                     toProcess.append(a)
 
                                 elif os.path.split(ii)[1] == 'stack10000':
