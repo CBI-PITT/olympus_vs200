@@ -61,7 +61,7 @@ def addCBIPath():
     import sys
     import os
     if os.name == 'nt':
-        path = r"//136.142.29.170/CBI_FastStore/cbiPythonTools"
+        path = r"//faststore.cbi.pitt.edu/CBI_FastStore/cbiPythonTools"
     else:
         path = r"/CBI_FastStore/cbiPythonTools"
     path = path.replace("\\","/")
@@ -79,6 +79,7 @@ addCBIPath()
 from cbiPythonTools import file as fi
 
 rootDirs = [fi.formatPath(x) for x in rootDirs]
+print(f'{rootDirs=}')
 
 
 
@@ -161,9 +162,12 @@ def convert(inFile,outFile):
 
 def convert_delayed(inFile,outFile,imageComplete,txt):
     os.makedirs(os.path.split(outFile)[0],exist_ok=True)
-    convert(inFile,outFile)
-    with open(imageComplete,'w') as f:
-        f.write(txt)
+    try:
+        convert(inFile,outFile)
+        with open(imageComplete,'w') as f:
+            f.write(txt)
+    except:
+        return False
     return True
     
 
